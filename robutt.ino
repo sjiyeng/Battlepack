@@ -3,7 +3,7 @@
 #include <RF24.h>
 #include <nRF24L01.h>
 
-RF24 radio(9,10 );
+RF24 radio(9,10); //CE, CSN
 const byte address[10] = "ADDRESS01";
 
 const int LeftMotorPin = 0;
@@ -30,6 +30,19 @@ void setup() {
 }
 
 void loop() {
+
+  if(radio.available()){
+    float Speed = "";
+    radio.read(&Speed, sizeof(Speed));
+    Serial.println("speed ");
+    Serial.print(Speed);
+
+    float Rotation = "";
+    radio.read(&Rotation, sizeof(Rotation));
+    Serial.println("Rotation ");
+    Serial.print(Rotation);
+
+  }
 
   //set left motor speed
   LeftMotorSpeed = Speed + Rotation;
