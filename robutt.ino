@@ -3,11 +3,12 @@
 #include <RF24.h>
 #include <nRF24L01.h>
 
-RF24 radio(9,10); //CE, CSN
-const byte address[10] = "ADDRESS01";
+const int LeftMotorPin = A0;
+const int RightMotorPin = A1;
+const int RCPinForward = A2;
+const int RCPinTurn = A3;
 
-const int LeftMotorPin = 0;
-const int RightMotorPin = 1;
+
 float Speed;
 float Rotation;
 float LeftMotorSpeed;
@@ -16,33 +17,42 @@ float RightMotorSpeed;
 Servo LeftMotor;
 Servo RightMotor;
 
+typedef struct {
+  volatile unsigned long startTime;
+  volatile unsigned long pulseWidth;
+} PWMInput;
+
+PWMInput inputForward;
+PWMInput inputTurn;
 
 void setup() {
+  Serial.begin(9600);
   // put your setup code here, to run once:
   LeftMotor.attach(LeftMotorPin);
+  LeftMotor.writeMicroseconds(1500);
   RightMotor.attach(RightMotorPin);
+  RightMotor.writeMicroseconds(1500);
+  delay(5000);
+  Serial.println("Controllers Calibrated");
 
-  radio.begin();
-  radio.openReadingPipe(0, address); 
-  radio.setPALevel(RF24_PA_MAX);
-  radio.startListening();
+  pinMode(RCPinForward, INPUT);
+  pinMode(RCPinTurn, INPUT);
 
+  attachInterrupt(digitalPinToInterrupt(RCPinForward), handleInterruptForward, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(RCPinTurn), handleInterruptTurn, CHANGE);
+  
 }
+
+
 
 void loop() {
 
-  if(radio.available()){
-    float Speed = "";
-    radio.read(&Speed, sizeof(Speed));
-    Serial.println("speed ");
-    Serial.print(Speed);
+  noInterrupts();
+  unsigned long pulseWidthForward = inputForward.pulseWidth;
+  unsigned long pulseWidthTurn = inputTurn.pulseWidth;
 
-    float Rotation = "";
-    radio.read(&Rotation, sizeof(Rotation));
-    Serial.println("Rotation ");
-    Serial.print(Rotation);
-
-  }
+  Serial.println(pulseWidthForward);
+   
 
   //set left motor speed
   LeftMotorSpeed = Speed + Rotation;
@@ -61,9 +71,24 @@ void loop() {
     RightMotorSpeed = -1;
   }
 
-  LeftMotor.writeMicroseconds(1500 + LeftMotorSpeed * 500);
+  LeftMotor.writeMicroseconds(1500);
   RightMotor.writeMicroseconds(1500 + RightMotorSpeed * 500);
   }
 
-
+void handleInterruptForward() {
+  unsigned long currentTime = micros();
+  if (digitalRead(RCPinForward) == HIGH) {
+    inputForward.startTime = currentTime;
+  } else {
+    inputForward.pulseWidth = currentTime - inputForward.startTime;
+  }
+}
+void handleInterruptTurn() {
+  unsigned long currentTime = micros();
+  if (digitalRead(RCPinTurn) == HIGH) {
+    inputTurn.startTime = currentTime;
+  } else {
+    inputTurn.pulseWidth = currentTime - inputTurn.startTime;
+  }
+}
 
